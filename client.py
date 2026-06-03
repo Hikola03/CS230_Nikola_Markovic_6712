@@ -1,17 +1,17 @@
 import socket
 import json
-
+import os
 
 SERVER_HOST = "localhost"
-SERVER_PORT = 5001  # promeni ako koristiš drugi port
+SERVER_PORT = 5001
 
 
 def load_routers():
-    return [
-        {"id": 1, "name": "Router A", "ip": "192.168.1.1"},
-        {"id": 2, "name": "Router B", "ip": "10.0.0.1"},
-        {"id": 3, "name": "Router C", "ip": "8.8.8.8"}
-    ]
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(base_dir, "routers.json")
+    with open(path, "r") as f:
+        data = json.load(f)
+    return data["routers"]
 
 
 def show_routers(routers):
@@ -55,7 +55,6 @@ def show_response(res):
         print("Error:", res["message"])
     else:
         icon = "ONLINE" if res["status"] == "ONLINE" else "OFFLINE"
-
         print(f"{icon} - {res['router_name']} ({res['router_ip']})")
         print(f"Response time: {res['time_ms']} ms")
         print(f"Server ID: {res['server_id']}")
@@ -69,7 +68,7 @@ def main():
     while True:
         show_routers(routers)
 
-        print("Select router (1-3) or 0 to exit:")
+        print(f"Select router (1-{len(routers)}) or 0 to exit:")
         choice = input("> ")
 
         if choice == "0":

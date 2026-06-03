@@ -1,5 +1,7 @@
 import time
 import socket
+import subprocess
+from database import save_data
 
 
 def validate_ip(ip):
@@ -17,16 +19,12 @@ def validate_ip(ip):
 
 
 def ping_router(ip):
-    try:
-        socket.setdefaulttimeout(1)
-
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((ip, 80))
-        s.close()
-
-        return "ONLINE"
-    except:
-        return "OFFLINE"
+    result = subprocess.run(
+        ["ping", "-n", "1", "-w", "1000", ip],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL
+    )
+    return "ONLINE" if result.returncode == 0 else "OFFLINE"
 
 
 def execute_request(data, server_id, client_ip):
@@ -41,15 +39,17 @@ def execute_request(data, server_id, client_ip):
         }
 
     start = time.time()
-
     status = ping_router(router_ip)
-
     end = time.time()
+
+    time_ms = round((end - start) * 1000, 2)
+
+    save_data(client_ip, router_ip, router_name, server_id, status, time_ms)
 
     return {
         "status": status,
         "router_ip": router_ip,
         "router_name": router_name,
-        "time_ms": round((end - start) * 1000, 2),
+        "time_ms": time_ms,
         "server_id": server_id
     }

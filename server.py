@@ -15,7 +15,12 @@ def handle_client(client_socket, client_addr, server_id):
             client_socket.close()
             return
 
-        data = json.loads(data_raw)
+        try:
+            data = json.loads(data_raw)
+        except json.JSONDecodeError:
+            error_response = {"status": "ERROR", "message": "Invalid JSON"}
+            client_socket.send(json.dumps(error_response).encode("utf-8"))
+            return
 
         print(f"[SERVER {server_id}] Request from {client_addr[0]}")
 
