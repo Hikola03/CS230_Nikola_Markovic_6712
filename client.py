@@ -1,9 +1,14 @@
 import socket
 import json
 import os
+import random
 
 SERVER_HOST = "localhost"
-SERVER_PORT = 5001
+SERVERS = [5001, 5002, 5003]
+
+
+def get_server():
+    return random.choice(SERVERS)
 
 
 def load_routers():
@@ -23,8 +28,10 @@ def show_routers(routers):
 
 def send_request(router):
     try:
+        port = get_server()
+
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect((SERVER_HOST, SERVER_PORT))
+        client.connect((SERVER_HOST, port))
 
         data = {
             "router_ip": router["ip"],
