@@ -1,15 +1,9 @@
 import socket
 import json
 import os
-import random
 
 SERVER_HOST = "localhost"
-SERVERS = [5001, 5002, 5003]
-
-
-def get_server():
-    return random.choice(SERVERS)
-
+LB_PORT = 5000
 
 def load_routers():
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -28,7 +22,7 @@ def show_routers(routers):
 
 def send_request(router):
     try:
-        port = get_server()
+        port = LB_PORT
 
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.connect((SERVER_HOST, port))
