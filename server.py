@@ -9,7 +9,23 @@ HOST = "localhost"
 
 def handle_client(client_socket, client_addr, server_id):
     try:
-        data_raw = client_socket.recv(4096).decode("utf-8")
+        # 4MB buffer - potreban za prenos fajlova
+        chunks = []
+        client_socket.settimeout(30)
+        while True:
+            chunk = client_socket.recv(4096)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            try:
+                # pokušaj parsiranja - ako uspe, primili smo kompletan JSON
+                data_raw = b"".join(chunks).decode("utf-8")
+                json.loads(data_raw)
+                break
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                continue
+
+        data_raw = b"".join(chunks).decode("utf-8")
 
         if not data_raw:
             client_socket.close()
@@ -22,13 +38,16 @@ def handle_client(client_socket, client_addr, server_id):
             client_socket.send(json.dumps(error_response).encode("utf-8"))
             return
 
-        print(f"[SERVER {server_id}] Request from {client_addr[0]}")
+        username = data.get("username", "unknown")
+        action   = data.get("action", "unknown")
+        print(f"[SERVER {server_id}] {client_addr[0]} | user:{username} | action:{action}")
 
         response = execute_request(data, server_id, client_addr[0])
 
-        client_socket.send(json.dumps(response).encode("utf-8"))
+        response_bytes = json.dumps(response).encode("utf-8")
+        client_socket.sendall(response_bytes)
 
-        print(f"[SERVER {server_id}] Response sent")
+        print(f"[SERVER {server_id}] Response sent → {response.get('status')}")
 
     except Exception as e:
         print(f"[SERVER {server_id}] Error: {e}")
@@ -42,7 +61,6 @@ def start_server(port):
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
     server_socket.bind((HOST, port))
     server_socket.listen()
 

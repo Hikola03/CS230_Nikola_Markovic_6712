@@ -26,17 +26,18 @@ def write_logs(data):
         json.dump(data, f, indent=4)
 
 
-def save_data(client_ip, router_ip, router_name, server_id, result, time_ms):
+def save_log(client_ip, username, server_id, action, filename, result, size_kb):
     data = read_logs()
 
     entry = {
         "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
         "client_ip": client_ip,
-        "router_ip": router_ip,
-        "router_name": router_name,
-        "status": result,
-        "time_ms": time_ms,
-        "server_id": server_id
+        "username": username,
+        "server_id": server_id,
+        "action": action,
+        "filename": filename,
+        "result": result,
+        "size_kb": size_kb
     }
 
     data.append(entry)
@@ -56,36 +57,47 @@ def print_all_logs():
 
     print("\n===== ALL LOGS =====")
     for d in data:
-        print(d)
+        ts  = d.get("timestamp", "-")
+        usr = d.get("username", "-")
+        act = d.get("action", "-")
+        fn  = d.get("filename", "-")
+        res = d.get("result", "-")
+        sid = d.get("server_id", "-")
+        print(f"[{ts}] {usr} | {act} | {fn} | {res} | server:{sid}")
     print("====================\n")
 
 
-def filter_by_ip(ip):
+def filter_by_user(username):
     data = read_logs()
-
     found = False
-
-    print(f"\n===== LOGS FOR IP: {ip} =====")
-
+    print(f"\n===== LOGS FOR USER: {username} =====")
     for d in data:
-        if d["router_ip"] == ip:
+        if d.get("username") == username:
             print(d)
             found = True
-
     if not found:
-        print("No logs for this IP")
+        print("No logs for this user")
+    print("=====================================\n")
 
-    print("============================\n")
+
+def filter_by_action(action):
+    data = read_logs()
+    found = False
+    print(f"\n===== LOGS FOR ACTION: {action} =====")
+    for d in data:
+        if d.get("action") == action:
+            print(d)
+            found = True
+    if not found:
+        print("No logs for this action")
+    print("=====================================\n")
 
 
 def last_n_logs(n):
     data = read_logs()
-
     print(f"\n===== LAST {n} LOGS =====")
-
     for d in data[-n:]:
         print(d)
-
     print("========================\n")
 
 
@@ -105,27 +117,34 @@ def stats():
         print("No logs found")
         return
 
-    total = len(data)
-    online = len([d for d in data if d["status"] == "ONLINE"])
-    offline = len([d for d in data if d["status"] == "OFFLINE"])
+    total   = len(data)
+    success = len([d for d in data if d.get("result") == "SUCCESS"])
+    failed  = total - success
 
-    avg_time = sum(d["time_ms"] for d in data) / total
+    uploads   = len([d for d in data if d.get("action") == "upload"])
+    downloads = len([d for d in data if d.get("action") == "download"])
+    deletes   = len([d for d in data if d.get("action") == "delete"])
+    lists     = len([d for d in data if d.get("action") == "list"])
+
+    total_kb = sum(d.get("size_kb", 0) for d in data)
 
     print("\n===== STATISTICS =====")
-    print(f"Total requests: {total}")
-    print(f"ONLINE: {online}")
-    print(f"OFFLINE: {offline}")
-    print(f"Average response time: {round(avg_time, 2)} ms")
+    print(f"Total operations : {total}")
+    print(f"Successful       : {success}")
+    print(f"Failed           : {failed}")
+    print(f"Uploads          : {uploads}")
+    print(f"Downloads        : {downloads}")
+    print(f"Deletes          : {deletes}")
+    print(f"List requests    : {lists}")
+    print(f"Total data (KB)  : {round(total_kb, 2)}")
     print("======================\n")
 
 
 def stats_by_server():
     data = read_logs()
-
     result = {}
-
     for d in data:
-        sid = d["server_id"]
+        sid = d.get("server_id")
         result.setdefault(sid, 0)
         result[sid] += 1
 
@@ -135,20 +154,18 @@ def stats_by_server():
     print("==============================\n")
 
 
-def stats_by_router():
+def stats_by_user():
     data = read_logs()
-
     result = {}
-
     for d in data:
-        name = d["router_name"]
-        result.setdefault(name, 0)
-        result[name] += 1
+        usr = d.get("username", "unknown")
+        result.setdefault(usr, 0)
+        result[usr] += 1
 
-    print("\n===== REQUESTS BY ROUTER =====")
+    print("\n===== REQUESTS BY USER =====")
     for k, v in result.items():
         print(f"{k}: {v} requests")
-    print("==============================\n")
+    print("============================\n")
 
 
 # ======================
@@ -161,10 +178,11 @@ def admin_menu():
         print("1. Prikaži sve logove")
         print("2. Statistika (globalna)")
         print("3. Statistika po serveru")
-        print("4. Statistika po routeru")
-        print("5. Filtriraj po IP")
-        print("6. Poslednjih N zahteva")
-        print("7. Obriši logove")
+        print("4. Statistika po korisniku")
+        print("5. Filtriraj po korisniku")
+        print("6. Filtriraj po akciji (upload/download/delete/list)")
+        print("7. Poslednjih N zahteva")
+        print("8. Obriši logove")
         print("0. Exit")
 
         choice = input("> ")
@@ -176,14 +194,17 @@ def admin_menu():
         elif choice == "3":
             stats_by_server()
         elif choice == "4":
-            stats_by_router()
+            stats_by_user()
         elif choice == "5":
-            ip = input("Enter IP: ")
-            filter_by_ip(ip)
+            usr = input("Username: ")
+            filter_by_user(usr)
         elif choice == "6":
+            act = input("Action (upload/download/delete/list): ")
+            filter_by_action(act)
+        elif choice == "7":
             n = int(input("N: "))
             last_n_logs(n)
-        elif choice == "7":
+        elif choice == "8":
             reset_logs()
         elif choice == "0":
             break
